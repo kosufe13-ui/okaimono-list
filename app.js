@@ -609,8 +609,12 @@ function renderStores() {
 
 function render() {
   applyPageTheme();
-  document.querySelectorAll(".screen").forEach((screen) => screen.classList.add("hidden"));
-  document.getElementById(`screen-${currentScreen}`).classList.remove("hidden");
+  // Avoid briefly applying display:none to the active screen — that blurs
+  // #item-input and on iOS leaves a zombie focus that dies on the next key.
+  const currentScreenId = `screen-${currentScreen}`;
+  document.querySelectorAll(".screen").forEach((screen) => {
+    screen.classList.toggle("hidden", screen.id !== currentScreenId);
+  });
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === currentScreen);
   });
@@ -634,18 +638,23 @@ let savedPageScroll = 0;
 function applyComposerMetrics() {
   const app = document.getElementById("app");
   if (!document.body.classList.contains("is-composing")) {
-    app.style.height = "";
-    app.style.transform = "";
+    if (app.style.height) app.style.height = "";
+    if (app.style.transform) app.style.transform = "";
     return;
   }
   const viewport = window.visualViewport;
   if (!viewport) {
-    app.style.height = `${window.innerHeight}px`;
-    app.style.transform = "";
+    const height = `${window.innerHeight}px`;
+    if (app.style.height !== height) app.style.height = height;
+    if (app.style.transform) app.style.transform = "";
     return;
   }
-  app.style.height = `${viewport.height}px`;
-  app.style.transform = `translateY(${viewport.offsetTop}px)`;
+  const height = `${viewport.height}px`;
+  const transform = `translateY(${viewport.offsetTop}px)`;
+  // Skip no-op writes — rewriting transform on a focused input's ancestor
+  // can drop keyboard focus on iOS Safari.
+  if (app.style.height !== height) app.style.height = height;
+  if (app.style.transform !== transform) app.style.transform = transform;
 }
 
 function revealLatestItemsWhileComposing() {
@@ -701,7 +710,15 @@ function beginActionLock() {
 function focusItemInput() {
   const input = document.getElementById("item-input");
   if (!input) return;
+  // Re-focusing an already-focused field interrupts iOS Japanese IME.
+  if (document.activeElement === input) return;
   input.focus({ preventScroll: true });
+}
+
+function releaseItemInputFocusLock() {
+  keepItemInputFocused = false;
+  clearTimeout(restoreItemInputFocusTimer);
+  restoreItemInputFocusTimer = 0;
 }
 
 function restoreItemInputFocus() {
@@ -709,10 +726,12 @@ function restoreItemInputFocus() {
   focusItemInput();
   requestAnimationFrame(focusItemInput);
   clearTimeout(restoreItemInputFocusTimer);
+  // Cover list reflow + viewport settle after add; release once settled.
   restoreItemInputFocusTimer = setTimeout(() => {
     focusItemInput();
     keepItemInputFocused = false;
-  }, 280);
+    restoreItemInputFocusTimer = 0;
+  }, 350);
 }
 
 function submitCurrentItem() {
@@ -749,6 +768,11 @@ document.getElementById("add-form").addEventListener("submit", (event) => {
 const itemInput = document.getElementById("item-input");
 itemInput.addEventListener("pointerdown", startComposing);
 itemInput.addEventListener("focus", startComposing);
+itemInput.addEventListener("input", () => {
+  // Successful keystroke means focus is healthy — drop the post-add lock
+  // so the user can dismiss the keyboard normally.
+  if (keepItemInputFocused) releaseItemInputFocusLock();
+});
 itemInput.addEventListener("blur", () => {
   setTimeout(() => {
     if (keepItemInputFocused) {
@@ -757,6 +781,7 @@ itemInput.addEventListener("blur", () => {
     }
     if (document.activeElement === itemInput) return;
     if (document.activeElement && document.activeElement.closest("#add-form")) return;
+    releaseItemInputFocusLock();
     stopComposing();
   }, 120);
 });
@@ -769,8 +794,9 @@ function onAddButtonPress(event) {
 }
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
+// pointerdown alone covers touch + mouse; also binding touchstart double-fires
+// submit on iOS and races focus restore.
 addSubmitButton.addEventListener("pointerdown", onAddButtonPress);
-addSubmitButton.addEventListener("touchstart", onAddButtonPress, { passive: false });
 bindActionPress(addSubmitButton);
 bindActionPress(document.querySelector("#store-form .add-btn"));
 bindActionPress(document.getElementById("modal-ok"));
