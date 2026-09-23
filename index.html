@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja" data-page="list">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
+  <meta name="theme-color" content="#FFF7F9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="お買い物リスト">
+  <meta name="description" content="お店ごとに分けて使える、シンプルなお買い物リスト">
+  <title>お買い物リスト</title>
+  <link rel="stylesheet" href="styles.css?v=60">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/favicon.png" type="image/png">
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <h1 id="page-title">お買い物リスト</h1>
+      <div id="store-tabs" class="store-tabs"></div>
+    </header>
+
+    <!-- リスト -->
+    <section id="screen-list" class="screen">
+      <div id="list-content" class="screen-body"></div>
+      <form id="add-form" class="add-bar" autocomplete="off">
+        <input id="item-input" type="text" maxlength="40" placeholder="買うものを入力" enterkeyhint="done">
+        <button type="submit" class="add-btn" aria-label="追加">追加</button>
+      </form>
+    </section>
+
+    <!-- よく買う -->
+    <section id="screen-favorites" class="screen hidden">
+      <div class="screen-body">
+        <p class="hint">タップすると、今選んでいるお店のリストに追加します。「すべて」のときは、すべてのお店に追加します。</p>
+        <div id="favorites-content"></div>
+      </div>
+      <form id="favorite-form" class="add-bar" autocomplete="off">
+        <input id="favorite-input" type="text" maxlength="40" placeholder="よく買うものを登録" enterkeyhint="done">
+        <button type="submit" class="add-btn">登録</button>
+      </form>
+    </section>
+
+    <!-- 履歴 -->
+    <section id="screen-history" class="screen hidden">
+      <div class="screen-body">
+        <p class="hint">削除した商品です。タップすると選択中のお店のリストに再追加できます。</p>
+        <div id="history-content"></div>
+      </div>
+    </section>
+
+    <!-- 設定 -->
+    <section id="screen-settings" class="screen hidden">
+      <div class="screen-body">
+        <h2 class="section-title">お店の管理</h2>
+        <p class="hint">お店を追加・名前変更・削除できます。右の三本線を長押しすると順番を入れ替えできます。</p>
+        <form id="store-form" class="card-form" autocomplete="off">
+          <input id="store-input" type="text" maxlength="20" placeholder="お店の名前">
+          <button type="submit" class="add-btn">追加</button>
+        </form>
+        <p class="hint">お店の色を選んでから追加できます。</p>
+        <div id="add-color-picker" class="color-picker"></div>
+        <div id="stores-content"></div>
+
+        <h2 class="section-title">アプリとして使う</h2>
+        <div class="info-card">
+          iPhoneのSafariでこの画面を開き、共有ボタンから「ホーム画面に追加」を選ぶと、普通のアプリに近い見た目で使えます。
+        </div>
+
+        <h2 class="section-title">データについて</h2>
+        <div class="info-card">
+          買い物リストは、この端末のブラウザの中に保存されます。ページを閉じても、iPhoneを再起動しても消えません。サーバーには送信されません。
+        </div>
+        <button type="button" id="clear-checked-btn" class="sub-btn">購入済みをすべて削除</button>
+        <button type="button" id="reset-btn" class="danger-btn">すべてのデータを消す</button>
+      </div>
+    </section>
+
+    <nav class="bottom-nav">
+      <button type="button" class="nav-btn active" data-screen="list">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M8 7h11M8 12h11M8 17h11M5 7h.01M5 12h.01M5 17h.01" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </span>
+        リスト
+      </button>
+      <button type="button" class="nav-btn" data-screen="favorites">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 17.3 6.8 20l1-5.7L3.5 10.3l5.8-.8L12 4.5l2.7 5 5.8.8-4.3 3.9 1 5.7z" fill="currentColor"/></svg>
+        </span>
+        よく買う
+      </button>
+      <button type="button" class="nav-btn" data-screen="history">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5.5 5.5h13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M7 5.5 8.6 19.2a1.8 1.8 0 0 0 1.8 1.6h4.2a1.8 1.8 0 0 0 1.8-1.6L17 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 8.8v8.2M12 8.8v8.2M14.5 8.8v8.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        </span>
+        ゴミ箱
+      </button>
+      <button type="button" class="nav-btn" data-screen="settings">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 13a7.8 7.8 0 0 0 .1-2l2-1.5-2-3.4-2.3.5a8 8 0 0 0-1.7-1L15 3h-4l-.5 2.6a8 8 0 0 0-1.7 1L6.5 6.1 4.5 9.5 6.4 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.3-.5a8 8 0 0 0 1.7 1L11 21h4l.5-2.6a8 8 0 0 0 1.7-1l2.3.5 2-3.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </span>
+        設定
+      </button>
+    </nav>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <p id="modal-text"></p>
+      <input id="modal-input" class="hidden" type="text" maxlength="20">
+      <div id="modal-colors" class="color-picker hidden"></div>
+      <div class="modal-actions">
+        <button type="button" id="modal-cancel" class="sub-btn">キャンセル</button>
+        <button type="button" id="modal-ok" class="add-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js?v=41"></script>
+</body>
+</html>
