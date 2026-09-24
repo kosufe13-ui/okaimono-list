@@ -1,4 +1,4 @@
-const CACHE_NAME = "okaimono-list-v76";
+const CACHE_NAME = "okaimono-list-v77";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -12,11 +12,11 @@ const PRECACHE = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(PRECACHE.map((path) => new Request(path, { cache: "reload" })));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
