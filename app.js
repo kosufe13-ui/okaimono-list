@@ -726,34 +726,9 @@ function render() {
 }
 
 const itemInput = document.getElementById("item-input");
-itemInput.dataset.dbg = "stable-item-input";
 let itemInputIsComposing = false;
 let ignoreEnterSubmitUntil = 0;
 let actionLockUntil = 0;
-
-function logItemInput(tag, extra) {
-  const el = document.getElementById("item-input");
-  console.log("[okaimono-input]", tag, {
-    sameNode: el === itemInput,
-    dbg: el && el.dataset.dbg,
-    activeId: document.activeElement && document.activeElement.id,
-    activeIsInput: document.activeElement === itemInput,
-    composing: itemInputIsComposing,
-    value: el && el.value,
-    ...extra
-  });
-}
-
-new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    mutation.removedNodes.forEach((node) => {
-      const lost =
-        node.id === "item-input" ||
-        (node.querySelector && node.querySelector("#item-input"));
-      if (lost) logItemInput("INPUT_REMOVED_FROM_DOM");
-    });
-  });
-}).observe(document.getElementById("screen-list"), { childList: true, subtree: true });
 
 function beginActionLock() {
   const now = Date.now();
@@ -763,19 +738,10 @@ function beginActionLock() {
 }
 
 function submitCurrentItem() {
-  if (!beginActionLock()) return;
   if (!itemInput) return;
-  const beforeInput = itemInput;
-  logItemInput("add:before", { beforeInput });
+  if (itemInputIsComposing) return;
   addItemToCurrentStore(itemInput.value);
   itemInput.value = "";
-  const afterInput = document.getElementById("item-input");
-  logItemInput("add:after", {
-    beforeInput,
-    afterInput,
-    sameAsBefore: beforeInput === afterInput,
-    stillFocused: document.activeElement === beforeInput
-  });
 }
 
 function bindActionPress(button) {
@@ -799,18 +765,12 @@ document.getElementById("add-form").addEventListener("submit", (event) => {
   submitCurrentItem();
 });
 
-itemInput.addEventListener("focus", () => logItemInput("focus"));
-itemInput.addEventListener("blur", () => logItemInput("blur"));
-itemInput.addEventListener("input", () => logItemInput("input"));
 itemInput.addEventListener("compositionstart", () => {
   itemInputIsComposing = true;
-  logItemInput("compositionstart");
 });
-itemInput.addEventListener("compositionupdate", () => logItemInput("compositionupdate"));
 itemInput.addEventListener("compositionend", () => {
   itemInputIsComposing = false;
   ignoreEnterSubmitUntil = Date.now() + 50;
-  logItemInput("compositionend");
 });
 itemInput.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
@@ -820,15 +780,15 @@ itemInput.addEventListener("keydown", (event) => {
   submitCurrentItem();
 });
 
-function onAddButtonPress(event) {
+const addSubmitButton = document.querySelector("#add-form .add-btn");
+addSubmitButton.addEventListener("pointerdown", (event) => {
   if (event.button) return;
   event.preventDefault();
+}, { passive: false });
+addSubmitButton.addEventListener("click", (event) => {
+  event.preventDefault();
   submitCurrentItem();
-}
-
-const addSubmitButton = document.querySelector("#add-form .add-btn");
-addSubmitButton.addEventListener("pointerdown", onAddButtonPress, { passive: false });
-addSubmitButton.addEventListener("touchstart", onAddButtonPress, { passive: false });
+});
 bindActionPress(addSubmitButton);
 bindActionPress(document.querySelector("#store-form .add-btn"));
 bindActionPress(document.getElementById("modal-ok"));
@@ -1287,7 +1247,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=78", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=79", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
