@@ -1040,6 +1040,49 @@ body.is-sorting .simple-list {
   -webkit-backdrop-filter: blur(12px);
 }
 
+html.keyboard-open,
+html.keyboard-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.keyboard-open .top-bar h1,
+html.keyboard-open .list-status,
+html.keyboard-open .list-progress,
+html.keyboard-open .bought-block,
+html.keyboard-open .store-heading {
+  display: none;
+}
+
+html.keyboard-open .store-group {
+  margin-top: 0;
+  padding-left: 0;
+}
+
+html.keyboard-open .store-group::before {
+  display: none;
+}
+
+html.keyboard-open #list-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: var(--list-max-h, 30vh);
+}
+
+html.keyboard-open #screen-list {
+  padding-bottom: calc(var(--nav-h) + var(--add-h) + var(--keyboard-h, 0px));
+}
+
+html.keyboard-open #screen-list .add-bar {
+  bottom: calc(var(--nav-h) + var(--keyboard-h, 0px));
+}
+
+html.keyboard-open .bottom-nav {
+  bottom: var(--keyboard-h, 0px);
+  padding-bottom: 0;
+}
+
 .card-form {
   display: flex;
   gap: 8px;
