@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="お買い物リスト">
   <meta name="description" content="お店ごとに分けて使える、シンプルなお買い物リスト">
   <title>お買い物リスト</title>
-  <link rel="stylesheet" href="styles.css?v=60">
+  <link rel="stylesheet" href="styles.css?v=67">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/favicon.png" type="image/png">
@@ -34,9 +34,10 @@
     <!-- よく買う -->
     <section id="screen-favorites" class="screen hidden">
       <div class="screen-body">
-        <p class="hint">タップすると、今選んでいるお店のリストに追加します。「すべて」のときは、すべてのお店に追加します。</p>
+        <p class="hint">チェックした商品を、今選んでいるお店のリストにまとめて追加できます。商品名をタップすると名前を編集できます。「すべて」のときは、すべてのお店に追加します。</p>
         <div id="favorites-content"></div>
       </div>
+      <button type="button" id="favorite-add-selected" class="favorite-select-bar hidden" data-action="add-selected-favorites">選択した0件を追加</button>
       <form id="favorite-form" class="add-bar" autocomplete="off">
         <input id="favorite-input" type="text" maxlength="40" placeholder="よく買うものを登録" enterkeyhint="done">
         <button type="submit" class="add-btn">登録</button>
@@ -46,9 +47,10 @@
     <!-- 履歴 -->
     <section id="screen-history" class="screen hidden">
       <div class="screen-body">
-        <p class="hint">削除した商品です。タップすると選択中のお店のリストに再追加できます。</p>
+        <p class="hint">チェックした商品を、今選んでいるお店のリストにまとめて追加できます。商品名をタップすると名前を編集できます。「すべて」のときは、すべてのお店に追加します。</p>
         <div id="history-content"></div>
       </div>
+      <button type="button" id="history-add-selected" class="favorite-select-bar hidden" data-action="add-selected-history">選択した0件を追加</button>
     </section>
 
     <!-- 設定 -->
@@ -119,6 +121,6 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=51"></script>
 </body>
 </html>

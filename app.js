@@ -89,6 +89,8 @@ let currentScreen = "list";
 let toastTimer = null;
 let modalCallback = null;
 const boughtOpenByStore = Object.create(null);
+const selectedFavoriteIds = new Set();
+const selectedHistoryIds = new Set();
 
 function isBoughtOpen(storeId) {
   return boughtOpenByStore[storeId] !== false;
@@ -195,13 +197,14 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.add("hidden"), 1600);
 }
 
-function openModal({ text, value, okLabel, onOk, color }) {
+function openModal({ text, value, okLabel, onOk, color, maxLength }) {
   const modal = document.getElementById("modal");
   const input = document.getElementById("modal-input");
   const colors = document.getElementById("modal-colors");
   document.getElementById("modal-text").textContent = text;
   document.getElementById("modal-ok").textContent = okLabel || "OK";
   modalCallback = onOk;
+  input.maxLength = maxLength || 20;
   if (value === undefined) {
     input.classList.add("hidden");
     input.value = "";
@@ -225,7 +228,35 @@ function openModal({ text, value, okLabel, onOk, color }) {
 function closeModal() {
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("modal-colors").classList.add("hidden");
+  document.getElementById("modal-input").maxLength = 20;
   modalCallback = null;
+}
+
+function openNameEditor(source, id) {
+  const record =
+    source === "item"
+      ? state.items.find((entry) => entry.id === id)
+      : source === "favorite"
+        ? state.favorites.find((entry) => entry.id === id)
+        : state.history.find((entry) => entry.id === id);
+  if (!record) return;
+  openModal({
+    text: "商品名を編集",
+    value: record.name,
+    okLabel: "保存",
+    maxLength: 40,
+    onOk: (value) => {
+      const name = (value || "").trim();
+      if (!name || name === record.name) return;
+      record.name = name;
+      saveState();
+      render();
+    }
+  });
+}
+
+function itemNameHtml(item, source) {
+  return `<button type="button" class="item-name" data-action="edit-name" data-source="${source}" data-id="${item.id}">${escapeHtml(item.name)}</button>`;
 }
 
 function rememberHistory(name) {
@@ -259,18 +290,11 @@ function addItemToStore(storeId, name) {
   return "added";
 }
 
-function addItemToCurrentStore(name, source) {
-  const trimmed = name.trim();
-  if (!trimmed) return;
+function currentStoreIds() {
+  return isAllStoresView() ? state.stores.map((store) => store.id) : [state.currentStoreId];
+}
 
-  const storeIds = isAllStoresView()
-    ? state.stores.map((store) => store.id)
-    : [state.currentStoreId];
-  const results = storeIds.map((storeId) => addItemToStore(storeId, trimmed));
-
-  saveState();
-  render();
-
+function toastAddResults(results, source) {
   if (results.every((result) => result === "exists")) {
     showToast("すでにリストにあります");
     return;
@@ -286,6 +310,29 @@ function addItemToCurrentStore(name, source) {
   if (source) {
     showToast("リストに追加しました");
   }
+}
+
+function addItemToCurrentStore(name, source) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const results = currentStoreIds().map((storeId) => addItemToStore(storeId, trimmed));
+  saveState();
+  render();
+  toastAddResults(results, source);
+}
+
+function addNamesToCurrentStore(names, source) {
+  const storeIds = currentStoreIds();
+  const results = [];
+  names.forEach((name) => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return;
+    storeIds.forEach((storeId) => results.push(addItemToStore(storeId, trimmed)));
+  });
+  if (results.length === 0) return;
+  saveState();
+  render();
+  toastAddResults(results, source);
 }
 
 function reorderFavorites(fromIndex, toIndex) {
@@ -396,7 +443,7 @@ function itemCardHtml(item, draggable) {
         ${item.checked ? "✓" : ""}
       </button>
       <div class="item-main">
-        <span class="item-name">${escapeHtml(item.name)}</span>
+        ${itemNameHtml(item, "item")}
       </div>
       <div class="side-actions">
         ${starButtonHtml(item)}
@@ -522,6 +569,43 @@ function renderList() {
   `;
 }
 
+function updateSelectBar(barId, selectedIds, items, screen, bodyClass) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  const ids = new Set(items.map((item) => item.id));
+  [...selectedIds].forEach((id) => {
+    if (!ids.has(id)) selectedIds.delete(id);
+  });
+  const count = selectedIds.size;
+  const show = currentScreen === screen && count > 0;
+  bar.textContent = `選択した${count}件を追加`;
+  bar.classList.toggle("hidden", !show);
+  document.body.classList.toggle(bodyClass, show);
+}
+
+function updateFavoriteSelectBar() {
+  updateSelectBar("favorite-add-selected", selectedFavoriteIds, state.favorites, "favorites", "has-favorite-selection");
+}
+
+function updateHistorySelectBar() {
+  updateSelectBar("history-add-selected", selectedHistoryIds, state.history, "history", "has-history-selection");
+}
+
+function toggleSelectButton(selectedIds, id, target, updateBar) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  const on = selectedIds.has(id);
+  const button = target.closest(".check-btn");
+  if (button) {
+    button.classList.toggle("is-on", on);
+    button.textContent = on ? "✓" : "";
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.classList.add("is-pop");
+    button.addEventListener("animationend", () => button.classList.remove("is-pop"), { once: true });
+  }
+  updateBar();
+}
+
 function renderFavorites() {
   const root = document.getElementById("favorites-content");
   if (state.favorites.length === 0) {
@@ -535,21 +619,27 @@ function renderFavorites() {
   }
 
   root.innerHTML = `
-    <div class="simple-list" data-sort-list="favorite">
+    <div class="favorite-list" data-sort-list="favorite">
       ${state.favorites
-        .map(
-          (item) => `
-            <article class="simple-card" data-sort-item data-id="${item.id}">
-              <button type="button" class="item-main" data-action="add-favorite" data-id="${item.id}">
-                <span class="item-name">${escapeHtml(item.name)}</span>
+        .map((item) => {
+          const selected = selectedFavoriteIds.has(item.id);
+          return `
+            <div class="favorite-row" data-sort-item data-id="${item.id}">
+              <button type="button" class="check-btn fav-select-btn ${selected ? "is-on" : ""}" data-action="toggle-favorite-select" data-id="${item.id}" aria-pressed="${selected ? "true" : "false"}" aria-label="追加する商品を選択">
+                ${selected ? "✓" : ""}
               </button>
-              <div class="side-actions">
-                ${starButtonHtml(item)}
-                ${dragHandleHtml()}
-              </div>
-            </article>
-          `
-        )
+              <article class="simple-card">
+                <div class="item-main">
+                  ${itemNameHtml(item, "favorite")}
+                </div>
+                <div class="side-actions">
+                  ${starButtonHtml(item)}
+                  ${dragHandleHtml()}
+                </div>
+              </article>
+            </div>
+          `;
+        })
         .join("")}
     </div>
   `;
@@ -568,18 +658,24 @@ function renderHistory() {
   }
 
   root.innerHTML = `
-    <div class="simple-list">
+    <div class="history-list">
       ${state.history
-        .map(
-          (item) => `
-            <article class="simple-card">
-              <button type="button" class="item-main" data-action="add-history" data-id="${item.id}">
-                <span class="item-name">${escapeHtml(item.name)}</span>
+        .map((item) => {
+          const selected = selectedHistoryIds.has(item.id);
+          return `
+            <div class="history-row">
+              <button type="button" class="check-btn fav-select-btn ${selected ? "is-on" : ""}" data-action="toggle-history-select" data-id="${item.id}" aria-pressed="${selected ? "true" : "false"}" aria-label="追加する商品を選択">
+                ${selected ? "✓" : ""}
               </button>
-              ${deleteButtonHtml("delete-history", item.id)}
-            </article>
-          `
-        )
+              <article class="simple-card">
+                <div class="item-main">
+                  ${itemNameHtml(item, "history")}
+                </div>
+                ${deleteButtonHtml("delete-history", item.id)}
+              </article>
+            </div>
+          `;
+        })
         .join("")}
     </div>
   `;
@@ -627,34 +723,43 @@ function render() {
     renderStores();
     fillColorPicker(document.getElementById("add-color-picker"), selectedAddColor);
   }
+  updateFavoriteSelectBar();
+  updateHistorySelectBar();
 }
 
 function isPhoneComposer() {
   return window.matchMedia("(pointer: coarse)").matches || /iPhone|iPod/i.test(navigator.userAgent);
 }
 
-let savedPageScroll = 0;
+let itemInputIsComposing = false;
+let lockedKeyboardH = null;
 
 function applyComposerMetrics() {
-  const app = document.getElementById("app");
+  const root = document.documentElement;
   if (!document.body.classList.contains("is-composing")) {
-    if (app.style.height) app.style.height = "";
-    if (app.style.transform) app.style.transform = "";
+    lockedKeyboardH = null;
+    root.style.removeProperty("--keyboard-h");
+    root.style.removeProperty("--list-max-h");
     return;
   }
   const viewport = window.visualViewport;
-  if (!viewport) {
-    const height = `${window.innerHeight}px`;
-    if (app.style.height !== height) app.style.height = height;
-    if (app.style.transform) app.style.transform = "";
-    return;
-  }
-  const height = `${viewport.height}px`;
-  const transform = `translateY(${viewport.offsetTop}px)`;
-  // Skip no-op writes — rewriting transform on a focused input's ancestor
-  // can drop keyboard focus on iOS Safari.
-  if (app.style.height !== height) app.style.height = height;
-  if (app.style.transform !== transform) app.style.transform = transform;
+  const vvHeight = viewport ? viewport.height : window.innerHeight;
+  const vvOffset = viewport ? viewport.offsetTop : 0;
+  const keyboardH = Math.max(0, Math.round(window.innerHeight - vvOffset - vvHeight));
+  // Keyboard open is a large change; the Japanese IME bar is ~40px.
+  // Moving the focused field when that bar appears blurs iOS on the first character.
+  const keyboardChanged = lockedKeyboardH == null || Math.abs(keyboardH - lockedKeyboardH) >= 80;
+  if (!keyboardChanged) return;
+  lockedKeyboardH = keyboardH;
+  root.style.setProperty("--keyboard-h", `${lockedKeyboardH}px`);
+  const topBar = document.querySelector(".top-bar");
+  const addBar = document.querySelector("#screen-list .add-bar");
+  const nav = document.querySelector(".bottom-nav");
+  const topH = topBar ? topBar.getBoundingClientRect().height : 0;
+  const addH = addBar ? addBar.getBoundingClientRect().height : 76;
+  const navH = nav ? nav.getBoundingClientRect().height : 64;
+  const listMax = Math.max(72, Math.round(vvHeight - topH - addH - navH));
+  root.style.setProperty("--list-max-h", `${listMax}px`);
 }
 
 function revealLatestItemsWhileComposing() {
@@ -669,9 +774,7 @@ function revealLatestItemsWhileComposing() {
 
 function scheduleRevealLatestItems() {
   const run = () => {
-    applyComposerMetrics();
     revealLatestItemsWhileComposing();
-    if (keepItemInputFocused) focusItemInput();
   };
   requestAnimationFrame(run);
   setTimeout(run, 50);
@@ -680,10 +783,9 @@ function scheduleRevealLatestItems() {
 
 function startComposing() {
   if (!isPhoneComposer() || currentScreen !== "list") return;
-  if (!document.body.classList.contains("is-composing")) {
-    savedPageScroll = window.scrollY;
-    document.body.classList.add("is-composing");
-  }
+  if (document.body.classList.contains("is-composing")) return;
+  document.documentElement.classList.add("is-composing");
+  document.body.classList.add("is-composing");
   applyComposerMetrics();
   scheduleRevealLatestItems();
 }
@@ -691,9 +793,10 @@ function startComposing() {
 function stopComposing() {
   if (keepItemInputFocused) return;
   if (!document.body.classList.contains("is-composing")) return;
+  itemInputIsComposing = false;
+  document.documentElement.classList.remove("is-composing");
   document.body.classList.remove("is-composing");
   applyComposerMetrics();
-  window.scrollTo(0, savedPageScroll);
 }
 
 let actionLockUntil = 0;
@@ -723,15 +826,11 @@ function releaseItemInputFocusLock() {
 
 function restoreItemInputFocus() {
   keepItemInputFocused = true;
-  focusItemInput();
-  requestAnimationFrame(focusItemInput);
   clearTimeout(restoreItemInputFocusTimer);
-  // Cover list reflow + viewport settle after add; release once settled.
   restoreItemInputFocusTimer = setTimeout(() => {
-    focusItemInput();
     keepItemInputFocused = false;
     restoreItemInputFocusTimer = 0;
-  }, 350);
+  }, 400);
 }
 
 function submitCurrentItem() {
@@ -768,18 +867,20 @@ document.getElementById("add-form").addEventListener("submit", (event) => {
 const itemInput = document.getElementById("item-input");
 itemInput.addEventListener("pointerdown", startComposing);
 itemInput.addEventListener("focus", startComposing);
-itemInput.addEventListener("input", () => {
-  // Successful keystroke means focus is healthy — drop the post-add lock
-  // so the user can dismiss the keyboard normally.
-  if (keepItemInputFocused) releaseItemInputFocusLock();
+itemInput.addEventListener("compositionstart", () => {
+  itemInputIsComposing = true;
+});
+itemInput.addEventListener("compositionend", () => {
+  itemInputIsComposing = false;
 });
 itemInput.addEventListener("blur", () => {
   setTimeout(() => {
+    if (document.activeElement === itemInput) return;
+    if (itemInputIsComposing) return;
     if (keepItemInputFocused) {
       focusItemInput();
       return;
     }
-    if (document.activeElement === itemInput) return;
     if (document.activeElement && document.activeElement.closest("#add-form")) return;
     releaseItemInputFocusLock();
     stopComposing();
@@ -794,23 +895,17 @@ function onAddButtonPress(event) {
 }
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
-// pointerdown alone covers touch + mouse; also binding touchstart double-fires
-// submit on iOS and races focus restore.
-addSubmitButton.addEventListener("pointerdown", onAddButtonPress);
+addSubmitButton.addEventListener("pointerdown", onAddButtonPress, { passive: false });
 bindActionPress(addSubmitButton);
 bindActionPress(document.querySelector("#store-form .add-btn"));
 bindActionPress(document.getElementById("modal-ok"));
+bindActionPress(document.getElementById("favorite-add-selected"));
+bindActionPress(document.getElementById("history-add-selected"));
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", () => {
     if (!document.body.classList.contains("is-composing")) return;
     applyComposerMetrics();
-    revealLatestItemsWhileComposing();
-  });
-  window.visualViewport.addEventListener("scroll", () => {
-    if (!document.body.classList.contains("is-composing")) return;
-    applyComposerMetrics();
-    window.scrollTo(0, 0);
   });
 }
 
@@ -887,7 +982,9 @@ document.getElementById("modal-ok").addEventListener("click", () => {
   callback(value);
 });
 document.getElementById("modal").addEventListener("click", (event) => {
-  if (event.target.id === "modal") closeModal();
+  if (event.target.id !== "modal") return;
+  if (Date.now() < ignoreClickUntil) return;
+  closeModal();
 });
 
 document.querySelector(".bottom-nav").addEventListener("click", (event) => {
@@ -970,6 +1067,59 @@ document.getElementById("app").addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "edit-name") {
+    openNameEditor(target.dataset.source, id);
+    return;
+  }
+
+  if (action === "toggle-favorite-select") {
+    toggleSelectButton(selectedFavoriteIds, id, target, updateFavoriteSelectBar);
+    return;
+  }
+
+  if (action === "toggle-history-select") {
+    toggleSelectButton(selectedHistoryIds, id, target, updateHistorySelectBar);
+    return;
+  }
+
+  if (action === "add-selected-favorites") {
+    const selected = state.favorites.filter((item) => selectedFavoriteIds.has(item.id));
+    if (selected.length === 0) return;
+    const count = selected.length;
+    const text = isAllStoresView()
+      ? `選択した${count}件を\nすべてのお店の買い物リストに追加しますか？`
+      : `選択した${count}件を\n「${currentStore().name}」の買い物リストに追加しますか？`;
+    openModal({
+      text,
+      okLabel: "追加する",
+      onOk: () => {
+        const names = selected.map((item) => item.name);
+        selectedFavoriteIds.clear();
+        addNamesToCurrentStore(names, "favorite");
+      }
+    });
+    return;
+  }
+
+  if (action === "add-selected-history") {
+    const selected = state.history.filter((item) => selectedHistoryIds.has(item.id));
+    if (selected.length === 0) return;
+    const count = selected.length;
+    const text = isAllStoresView()
+      ? `選択した${count}件を\nすべてのお店の買い物リストに追加しますか？`
+      : `選択した${count}件を\n「${currentStore().name}」の買い物リストに追加しますか？`;
+    openModal({
+      text,
+      okLabel: "追加する",
+      onOk: () => {
+        const names = selected.map((item) => item.name);
+        selectedHistoryIds.clear();
+        addNamesToCurrentStore(names, "history");
+      }
+    });
+    return;
+  }
+
   if (action === "toggle-star") {
     const listItem = state.items.find((entry) => entry.id === id);
     const favorite = state.favorites.find((entry) => entry.id === id);
@@ -996,36 +1146,6 @@ document.getElementById("app").addEventListener("click", (event) => {
         saveState();
         render();
       }
-    });
-    return;
-  }
-
-  if (action === "add-favorite") {
-    const favorite = state.favorites.find((entry) => entry.id === id);
-    if (!favorite) return;
-    const itemName = favorite.name;
-    const text = isAllStoresView()
-      ? `「${itemName}」を\nすべてのお店の買い物リストに追加しますか？`
-      : `「${itemName}」を\n「${currentStore().name}」の買い物リストに追加しますか？`;
-    openModal({
-      text,
-      okLabel: "追加する",
-      onOk: () => addItemToCurrentStore(itemName, "favorite")
-    });
-    return;
-  }
-
-  if (action === "add-history") {
-    const historyItem = state.history.find((entry) => entry.id === id);
-    if (!historyItem) return;
-    const itemName = historyItem.name;
-    const text = isAllStoresView()
-      ? `「${itemName}」を\nすべてのお店の買い物リストに追加しますか？`
-      : `「${itemName}」を\n「${currentStore().name}」のリストに追加しますか？`;
-    openModal({
-      text,
-      okLabel: "追加する",
-      onOk: () => addItemToCurrentStore(itemName, "history")
     });
     return;
   }
@@ -1119,27 +1239,25 @@ function releasePressedRow() {
 
 document.addEventListener("pointerdown", (event) => {
   if (event.button) return;
-  const checkButton = event.target.closest("#list-content .check-btn");
+  const checkButton = event.target.closest("#list-content .check-btn, #favorites-content .check-btn, #history-content .check-btn");
   if (checkButton) checkButton.classList.add("is-pressed");
-  if (event.target.closest(".star-btn, .icon-btn, [data-drag-handle]")) {
+  if (event.target.closest(".star-btn, .icon-btn, [data-drag-handle], .item-name[data-action='edit-name'], #favorites-content .check-btn, #history-content .check-btn")) {
     releasePressedRow();
     return;
   }
-  const main = event.target.closest("#favorites-content .item-main, #history-content .item-main");
-  if (!main) return;
-  const card = main.closest(".simple-card");
-  if (!card) return;
-  releasePressedRow();
-  pressedRow = card;
-  card.classList.add("is-pressed");
 });
 
 document.addEventListener("pointercancel", (event) => {
-  const checkButton = event.target.closest("#list-content .check-btn");
+  const checkButton = event.target.closest("#list-content .check-btn, #favorites-content .check-btn, #history-content .check-btn");
   if (checkButton) checkButton.classList.remove("is-pressed");
 });
 
-window.addEventListener("pointerup", releasePressedRow);
+window.addEventListener("pointerup", () => {
+  document.querySelectorAll("#list-content .check-btn.is-pressed, #favorites-content .check-btn.is-pressed, #history-content .check-btn.is-pressed").forEach((button) => {
+    button.classList.remove("is-pressed");
+  });
+  releasePressedRow();
+});
 window.addEventListener("pointercancel", releasePressedRow);
 
 document.addEventListener("pointerdown", (event) => {

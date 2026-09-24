@@ -1,11 +1,11 @@
-const CACHE_NAME = "okaimono-list-v65";
+const CACHE_NAME = "okaimono-list-v74";
 const FILES = [
   "./",
   "./index.html",
   "./styles.css",
-  "./styles.css?v=60",
+  "./styles.css?v=67",
   "./app.js",
-  "./app.js?v=42",
+  "./app.js?v=51",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
