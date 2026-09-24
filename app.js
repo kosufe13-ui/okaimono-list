@@ -706,11 +706,9 @@ function renderStores() {
 function render() {
   applyPageTheme();
   const currentScreenId = `screen-${currentScreen}`;
-  if (!keepItemInputFocused) {
-    document.querySelectorAll(".screen").forEach((screen) => {
-      screen.classList.toggle("hidden", screen.id !== currentScreenId);
-    });
-  }
+  document.querySelectorAll(".screen").forEach((screen) => {
+    screen.classList.toggle("hidden", screen.id !== currentScreenId);
+  });
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === currentScreen);
   });
@@ -728,75 +726,34 @@ function render() {
 }
 
 const itemInput = document.getElementById("item-input");
-let keepItemInputFocused = false;
+itemInput.dataset.dbg = "stable-item-input";
 let itemInputIsComposing = false;
-let clearingItemInput = false;
 let ignoreEnterSubmitUntil = 0;
-let lockedKeyboardH = null;
 let actionLockUntil = 0;
 
-function isPhoneComposer() {
-  return window.matchMedia("(pointer: coarse)").matches || /iPhone|iPod/i.test(navigator.userAgent);
+function logItemInput(tag, extra) {
+  const el = document.getElementById("item-input");
+  console.log("[okaimono-input]", tag, {
+    sameNode: el === itemInput,
+    dbg: el && el.dataset.dbg,
+    activeId: document.activeElement && document.activeElement.id,
+    activeIsInput: document.activeElement === itemInput,
+    composing: itemInputIsComposing,
+    value: el && el.value,
+    ...extra
+  });
 }
 
-function applyComposerMetrics() {
-  const root = document.documentElement;
-  if (!document.body.classList.contains("is-composing")) {
-    lockedKeyboardH = null;
-    root.style.removeProperty("--keyboard-h");
-    root.style.removeProperty("--list-max-h");
-    return;
-  }
-  const viewport = window.visualViewport;
-  const vvHeight = viewport ? viewport.height : window.innerHeight;
-  const vvOffset = viewport ? viewport.offsetTop : 0;
-  const keyboardH = Math.max(0, Math.round(window.innerHeight - vvOffset - vvHeight));
-  const keyboardChanged = lockedKeyboardH == null || Math.abs(keyboardH - lockedKeyboardH) >= 80;
-  if (!keyboardChanged) return;
-  lockedKeyboardH = keyboardH;
-  root.style.setProperty("--keyboard-h", `${lockedKeyboardH}px`);
-  const topBar = document.querySelector(".top-bar");
-  const addBar = document.querySelector("#screen-list .add-bar");
-  const nav = document.querySelector(".bottom-nav");
-  const topH = topBar ? topBar.getBoundingClientRect().height : 0;
-  const addH = addBar ? addBar.getBoundingClientRect().height : 76;
-  const navH = nav ? nav.getBoundingClientRect().height : 64;
-  const listMax = Math.max(72, Math.round(vvHeight - topH - addH - navH));
-  root.style.setProperty("--list-max-h", `${listMax}px`);
-}
-
-function revealLatestItemsWhileComposing() {
-  if (!document.body.classList.contains("is-composing")) return;
-  const scroller = document.getElementById("list-content");
-  if (!scroller) return;
-  const last = [...scroller.querySelectorAll(".item-card:not(.checked)")].at(-1);
-  if (!last) return;
-  const delta = last.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom + 8;
-  scroller.scrollTop = Math.max(0, scroller.scrollTop + delta);
-}
-
-function scheduleRevealLatestItems() {
-  requestAnimationFrame(() => revealLatestItemsWhileComposing());
-}
-
-function startComposing() {
-  if (!isPhoneComposer() || currentScreen !== "list") return;
-  if (document.body.classList.contains("is-composing")) return;
-  document.documentElement.classList.add("is-composing");
-  document.body.classList.add("is-composing");
-  applyComposerMetrics();
-  scheduleRevealLatestItems();
-}
-
-function stopComposing(force) {
-  if (!force && keepItemInputFocused) return;
-  if (!document.body.classList.contains("is-composing") && !force) return;
-  keepItemInputFocused = false;
-  itemInputIsComposing = false;
-  document.documentElement.classList.remove("is-composing");
-  document.body.classList.remove("is-composing");
-  applyComposerMetrics();
-}
+new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    mutation.removedNodes.forEach((node) => {
+      const lost =
+        node.id === "item-input" ||
+        (node.querySelector && node.querySelector("#item-input"));
+      if (lost) logItemInput("INPUT_REMOVED_FROM_DOM");
+    });
+  });
+}).observe(document.getElementById("screen-list"), { childList: true, subtree: true });
 
 function beginActionLock() {
   const now = Date.now();
@@ -808,19 +765,16 @@ function beginActionLock() {
 function submitCurrentItem() {
   if (!beginActionLock()) return;
   if (!itemInput) return;
-  keepItemInputFocused = true;
+  const beforeInput = itemInput;
+  logItemInput("add:before", { beforeInput });
   addItemToCurrentStore(itemInput.value);
-  clearingItemInput = true;
   itemInput.value = "";
-  clearingItemInput = false;
-  revealLatestItemsWhileComposing();
-  if (document.activeElement === itemInput) return;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (!keepItemInputFocused || itemInputIsComposing) return;
-      if (document.activeElement === itemInput) return;
-      itemInput.focus({ preventScroll: true });
-    });
+  const afterInput = document.getElementById("item-input");
+  logItemInput("add:after", {
+    beforeInput,
+    afterInput,
+    sameAsBefore: beforeInput === afterInput,
+    stillFocused: document.activeElement === beforeInput
   });
 }
 
@@ -845,19 +799,18 @@ document.getElementById("add-form").addEventListener("submit", (event) => {
   submitCurrentItem();
 });
 
-itemInput.addEventListener("pointerdown", startComposing);
-itemInput.addEventListener("focus", startComposing);
+itemInput.addEventListener("focus", () => logItemInput("focus"));
+itemInput.addEventListener("blur", () => logItemInput("blur"));
+itemInput.addEventListener("input", () => logItemInput("input"));
 itemInput.addEventListener("compositionstart", () => {
   itemInputIsComposing = true;
-  keepItemInputFocused = false;
+  logItemInput("compositionstart");
 });
+itemInput.addEventListener("compositionupdate", () => logItemInput("compositionupdate"));
 itemInput.addEventListener("compositionend", () => {
   itemInputIsComposing = false;
   ignoreEnterSubmitUntil = Date.now() + 50;
-});
-itemInput.addEventListener("beforeinput", () => {
-  if (clearingItemInput) return;
-  keepItemInputFocused = false;
+  logItemInput("compositionend");
 });
 itemInput.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return;
@@ -866,43 +819,21 @@ itemInput.addEventListener("keydown", (event) => {
   event.preventDefault();
   submitCurrentItem();
 });
-itemInput.addEventListener("blur", () => {
-  const restore = keepItemInputFocused;
-  setTimeout(() => {
-    if (document.activeElement === itemInput) return;
-    if (itemInputIsComposing) return;
-    if (restore) return;
-    if (document.activeElement && document.activeElement.closest("#add-form")) return;
-    keepItemInputFocused = false;
-    stopComposing();
-  }, 0);
-});
 
 function onAddButtonPress(event) {
   if (event.button) return;
   event.preventDefault();
-  keepItemInputFocused = true;
   submitCurrentItem();
 }
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
 addSubmitButton.addEventListener("pointerdown", onAddButtonPress, { passive: false });
-addSubmitButton.addEventListener("touchend", (event) => {
-  event.preventDefault();
-}, { passive: false });
+addSubmitButton.addEventListener("touchstart", onAddButtonPress, { passive: false });
 bindActionPress(addSubmitButton);
 bindActionPress(document.querySelector("#store-form .add-btn"));
 bindActionPress(document.getElementById("modal-ok"));
 bindActionPress(document.getElementById("favorite-add-selected"));
 bindActionPress(document.getElementById("history-add-selected"));
-
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", () => {
-    if (!document.body.classList.contains("is-composing")) return;
-    if (itemInputIsComposing) return;
-    applyComposerMetrics();
-  });
-}
 
 document.getElementById("favorite-form").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -985,7 +916,6 @@ document.getElementById("modal").addEventListener("click", (event) => {
 document.querySelector(".bottom-nav").addEventListener("click", (event) => {
   const button = event.target.closest(".nav-btn");
   if (!button) return;
-  stopComposing(true);
   currentScreen = button.dataset.screen;
   render();
 });
@@ -1357,7 +1287,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=77", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=78", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

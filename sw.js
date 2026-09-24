@@ -1,4 +1,4 @@
-const CACHE_NAME = "okaimono-list-v77";
+const CACHE_NAME = "okaimono-list-v78";
 const PRECACHE = [
   "./",
   "./index.html",
