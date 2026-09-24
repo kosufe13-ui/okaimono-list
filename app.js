@@ -705,12 +705,12 @@ function renderStores() {
 
 function render() {
   applyPageTheme();
-  // Avoid briefly applying display:none to the active screen — that blurs
-  // #item-input and on iOS leaves a zombie focus that dies on the next key.
   const currentScreenId = `screen-${currentScreen}`;
-  document.querySelectorAll(".screen").forEach((screen) => {
-    screen.classList.toggle("hidden", screen.id !== currentScreenId);
-  });
+  if (!keepItemInputFocused) {
+    document.querySelectorAll(".screen").forEach((screen) => {
+      screen.classList.toggle("hidden", screen.id !== currentScreenId);
+    });
+  }
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === currentScreen);
   });
@@ -727,12 +727,17 @@ function render() {
   updateHistorySelectBar();
 }
 
+const itemInput = document.getElementById("item-input");
+let keepItemInputFocused = false;
+let itemInputIsComposing = false;
+let clearingItemInput = false;
+let ignoreEnterSubmitUntil = 0;
+let lockedKeyboardH = null;
+let actionLockUntil = 0;
+
 function isPhoneComposer() {
   return window.matchMedia("(pointer: coarse)").matches || /iPhone|iPod/i.test(navigator.userAgent);
 }
-
-let itemInputIsComposing = false;
-let lockedKeyboardH = null;
 
 function applyComposerMetrics() {
   const root = document.documentElement;
@@ -746,8 +751,6 @@ function applyComposerMetrics() {
   const vvHeight = viewport ? viewport.height : window.innerHeight;
   const vvOffset = viewport ? viewport.offsetTop : 0;
   const keyboardH = Math.max(0, Math.round(window.innerHeight - vvOffset - vvHeight));
-  // Keyboard open is a large change; the Japanese IME bar is ~40px.
-  // Moving the focused field when that bar appears blurs iOS on the first character.
   const keyboardChanged = lockedKeyboardH == null || Math.abs(keyboardH - lockedKeyboardH) >= 80;
   if (!keyboardChanged) return;
   lockedKeyboardH = keyboardH;
@@ -773,12 +776,7 @@ function revealLatestItemsWhileComposing() {
 }
 
 function scheduleRevealLatestItems() {
-  const run = () => {
-    revealLatestItemsWhileComposing();
-  };
-  requestAnimationFrame(run);
-  setTimeout(run, 50);
-  setTimeout(run, 220);
+  requestAnimationFrame(() => revealLatestItemsWhileComposing());
 }
 
 function startComposing() {
@@ -790,18 +788,15 @@ function startComposing() {
   scheduleRevealLatestItems();
 }
 
-function stopComposing() {
-  if (keepItemInputFocused) return;
-  if (!document.body.classList.contains("is-composing")) return;
+function stopComposing(force) {
+  if (!force && keepItemInputFocused) return;
+  if (!document.body.classList.contains("is-composing") && !force) return;
+  keepItemInputFocused = false;
   itemInputIsComposing = false;
   document.documentElement.classList.remove("is-composing");
   document.body.classList.remove("is-composing");
   applyComposerMetrics();
 }
-
-let actionLockUntil = 0;
-let keepItemInputFocused = false;
-let restoreItemInputFocusTimer = 0;
 
 function beginActionLock() {
   const now = Date.now();
@@ -810,37 +805,23 @@ function beginActionLock() {
   return true;
 }
 
-function focusItemInput() {
-  const input = document.getElementById("item-input");
-  if (!input) return;
-  // Re-focusing an already-focused field interrupts iOS Japanese IME.
-  if (document.activeElement === input) return;
-  input.focus({ preventScroll: true });
-}
-
-function releaseItemInputFocusLock() {
-  keepItemInputFocused = false;
-  clearTimeout(restoreItemInputFocusTimer);
-  restoreItemInputFocusTimer = 0;
-}
-
-function restoreItemInputFocus() {
-  keepItemInputFocused = true;
-  clearTimeout(restoreItemInputFocusTimer);
-  restoreItemInputFocusTimer = setTimeout(() => {
-    keepItemInputFocused = false;
-    restoreItemInputFocusTimer = 0;
-  }, 400);
-}
-
 function submitCurrentItem() {
   if (!beginActionLock()) return;
-  const input = document.getElementById("item-input");
+  if (!itemInput) return;
   keepItemInputFocused = true;
-  addItemToCurrentStore(input.value);
-  input.value = "";
-  restoreItemInputFocus();
-  scheduleRevealLatestItems();
+  addItemToCurrentStore(itemInput.value);
+  clearingItemInput = true;
+  itemInput.value = "";
+  clearingItemInput = false;
+  revealLatestItemsWhileComposing();
+  if (document.activeElement === itemInput) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!keepItemInputFocused || itemInputIsComposing) return;
+      if (document.activeElement === itemInput) return;
+      itemInput.focus({ preventScroll: true });
+    });
+  });
 }
 
 function bindActionPress(button) {
@@ -864,27 +845,37 @@ document.getElementById("add-form").addEventListener("submit", (event) => {
   submitCurrentItem();
 });
 
-const itemInput = document.getElementById("item-input");
 itemInput.addEventListener("pointerdown", startComposing);
 itemInput.addEventListener("focus", startComposing);
 itemInput.addEventListener("compositionstart", () => {
   itemInputIsComposing = true;
+  keepItemInputFocused = false;
 });
 itemInput.addEventListener("compositionend", () => {
   itemInputIsComposing = false;
+  ignoreEnterSubmitUntil = Date.now() + 50;
+});
+itemInput.addEventListener("beforeinput", () => {
+  if (clearingItemInput) return;
+  keepItemInputFocused = false;
+});
+itemInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  if (event.isComposing || itemInputIsComposing || event.keyCode === 229) return;
+  if (Date.now() < ignoreEnterSubmitUntil) return;
+  event.preventDefault();
+  submitCurrentItem();
 });
 itemInput.addEventListener("blur", () => {
+  const restore = keepItemInputFocused;
   setTimeout(() => {
     if (document.activeElement === itemInput) return;
     if (itemInputIsComposing) return;
-    if (keepItemInputFocused) {
-      focusItemInput();
-      return;
-    }
+    if (restore) return;
     if (document.activeElement && document.activeElement.closest("#add-form")) return;
-    releaseItemInputFocusLock();
+    keepItemInputFocused = false;
     stopComposing();
-  }, 120);
+  }, 0);
 });
 
 function onAddButtonPress(event) {
@@ -896,6 +887,9 @@ function onAddButtonPress(event) {
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
 addSubmitButton.addEventListener("pointerdown", onAddButtonPress, { passive: false });
+addSubmitButton.addEventListener("touchend", (event) => {
+  event.preventDefault();
+}, { passive: false });
 bindActionPress(addSubmitButton);
 bindActionPress(document.querySelector("#store-form .add-btn"));
 bindActionPress(document.getElementById("modal-ok"));
@@ -905,6 +899,7 @@ bindActionPress(document.getElementById("history-add-selected"));
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", () => {
     if (!document.body.classList.contains("is-composing")) return;
+    if (itemInputIsComposing) return;
     applyComposerMetrics();
   });
 }
@@ -990,7 +985,7 @@ document.getElementById("modal").addEventListener("click", (event) => {
 document.querySelector(".bottom-nav").addEventListener("click", (event) => {
   const button = event.target.closest(".nav-btn");
   if (!button) return;
-  stopComposing();
+  stopComposing(true);
   currentScreen = button.dataset.screen;
   render();
 });
