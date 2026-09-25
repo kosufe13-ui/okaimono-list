@@ -1254,15 +1254,14 @@ function isPhoneKeyboardLayout() {
 
 function clearKeyboardLayout() {
   document.documentElement.classList.remove("keyboard-open");
-  document.documentElement.style.removeProperty("--keyboard-h");
   document.documentElement.style.removeProperty("--list-max-h");
 }
 
-let lockedKeyboardH = null;
+let lockedListMaxH = null;
 
 function syncKeyboardLayout() {
   if (!isPhoneKeyboardLayout() || currentScreen !== "list") {
-    lockedKeyboardH = null;
+    lockedListMaxH = null;
     clearKeyboardLayout();
     return;
   }
@@ -1272,15 +1271,12 @@ function syncKeyboardLayout() {
   const keyboardH = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
   const open = keyboardH >= 80;
   if (!open) {
-    lockedKeyboardH = null;
+    lockedListMaxH = null;
     clearKeyboardLayout();
     return;
   }
-  if (lockedKeyboardH != null && Math.abs(keyboardH - lockedKeyboardH) < 80) return;
-  lockedKeyboardH = keyboardH;
   const root = document.documentElement;
   root.classList.add("keyboard-open");
-  root.style.setProperty("--keyboard-h", `${keyboardH}px`);
   const topBar = document.querySelector(".top-bar");
   const addBar = document.querySelector("#screen-list .add-bar");
   const nav = document.querySelector(".bottom-nav");
@@ -1288,6 +1284,8 @@ function syncKeyboardLayout() {
   const addH = addBar ? addBar.getBoundingClientRect().height : 76;
   const navH = nav ? nav.getBoundingClientRect().height : 64;
   const listMax = Math.max(120, Math.round(viewport.height - topH - addH - navH));
+  if (lockedListMaxH != null && Math.abs(listMax - lockedListMaxH) < 24) return;
+  lockedListMaxH = listMax;
   root.style.setProperty("--list-max-h", `${listMax}px`);
   scrollListToLatestIfKeyboardOpen();
 }
@@ -1307,7 +1305,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=80", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=81", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

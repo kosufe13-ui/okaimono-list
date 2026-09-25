@@ -1070,19 +1070,6 @@ html.keyboard-open #list-content {
   max-height: var(--list-max-h, 30vh);
 }
 
-html.keyboard-open #screen-list {
-  padding-bottom: calc(var(--nav-h) + var(--add-h) + var(--keyboard-h, 0px));
-}
-
-html.keyboard-open #screen-list .add-bar {
-  bottom: calc(var(--nav-h) + var(--keyboard-h, 0px));
-}
-
-html.keyboard-open .bottom-nav {
-  bottom: var(--keyboard-h, 0px);
-  padding-bottom: 0;
-}
-
 .card-form {
   display: flex;
   gap: 8px;
