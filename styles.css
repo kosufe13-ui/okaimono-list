@@ -1040,36 +1040,6 @@ body.is-sorting .simple-list {
   -webkit-backdrop-filter: blur(12px);
 }
 
-html.keyboard-open,
-html.keyboard-open body {
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-html.keyboard-open .top-bar h1,
-html.keyboard-open .list-status,
-html.keyboard-open .list-progress,
-html.keyboard-open .bought-block,
-html.keyboard-open .store-heading {
-  display: none;
-}
-
-html.keyboard-open .store-group {
-  margin-top: 0;
-  padding-left: 0;
-}
-
-html.keyboard-open .store-group::before {
-  display: none;
-}
-
-html.keyboard-open #list-content {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  max-height: var(--list-max-h, 30vh);
-}
-
 .card-form {
   display: flex;
   gap: 8px;
@@ -1164,6 +1134,111 @@ html.keyboard-open #list-content {
   background: var(--bg);
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (pointer: coarse), (max-width: 519px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    min-height: 100%;
+  }
+
+  #app {
+    height: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .top-bar {
+    flex-shrink: 0;
+  }
+
+  .screen:not(.hidden) {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding-bottom: 28px;
+  }
+
+  #screen-list:not(.hidden),
+  #screen-favorites:not(.hidden),
+  #screen-history:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  #list-content,
+  #screen-favorites:not(.hidden) > .screen-body,
+  #screen-history:not(.hidden) > .screen-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #screen-list .add-bar,
+  #screen-favorites .add-bar {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .favorite-select-bar {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    transform: none;
+    width: calc(100% - 32px);
+    margin: 8px auto;
+    flex-shrink: 0;
+  }
+
+  .favorite-select-bar:active,
+  .favorite-select-bar.is-pressed {
+    transform: scale(0.98);
+  }
+
+  .bottom-nav {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .top-bar:has(+ #screen-list:focus-within) h1 {
+    display: none;
+  }
+
+  #screen-list:focus-within .list-status,
+  #screen-list:focus-within .list-progress,
+  #screen-list:focus-within .bought-block,
+  #screen-list:focus-within .store-heading {
+    display: none;
+  }
+
+  #screen-list:focus-within .store-group {
+    margin-top: 0;
+    padding-left: 0;
+  }
+
+  #screen-list:focus-within .store-group::before {
+    display: none;
+  }
 }
 
 .nav-btn {

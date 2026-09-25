@@ -526,7 +526,7 @@ function renderList() {
           まだ商品がありません<br>お店を選ぶか、下の欄から追加してみましょう
         </div>
       `;
-      scrollListToLatestIfKeyboardOpen();
+      scrollListToLatestItem();
       return;
     }
     root.innerHTML = `
@@ -546,7 +546,7 @@ function renderList() {
         })
         .join("")}
     `;
-    scrollListToLatestIfKeyboardOpen();
+    scrollListToLatestItem();
     return;
   }
 
@@ -561,7 +561,7 @@ function renderList() {
         まだ商品がありません<br>下の欄から追加してみましょう
       </div>
     `;
-    scrollListToLatestIfKeyboardOpen();
+    scrollListToLatestItem();
     return;
   }
 
@@ -570,7 +570,7 @@ function renderList() {
     ${progressHtml(items)}
     ${renderStoreItemLists(state.currentStoreId)}
   `;
-  scrollListToLatestIfKeyboardOpen();
+  scrollListToLatestItem();
 }
 
 function updateSelectBar(barId, selectedIds, items, screen, bodyClass) {
@@ -727,7 +727,6 @@ function render() {
   }
   updateFavoriteSelectBar();
   updateHistorySelectBar();
-  syncKeyboardLayout();
 }
 
 const itemInput = document.getElementById("item-input");
@@ -1248,64 +1247,20 @@ document.addEventListener("pointerdown", (event) => {
   window.addEventListener("pointercancel", onUp);
 });
 
-function isPhoneKeyboardLayout() {
-  return window.matchMedia("(pointer: coarse)").matches || /iPhone|iPod/i.test(navigator.userAgent);
-}
-
-function clearKeyboardLayout() {
-  document.documentElement.classList.remove("keyboard-open");
-  document.documentElement.style.removeProperty("--list-max-h");
-}
-
-let lockedListMaxH = null;
-
-function syncKeyboardLayout() {
-  if (!isPhoneKeyboardLayout() || currentScreen !== "list") {
-    lockedListMaxH = null;
-    clearKeyboardLayout();
-    return;
-  }
-  if (itemInputIsComposing) return;
-  const viewport = window.visualViewport;
-  if (!viewport) return;
-  const keyboardH = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
-  const open = keyboardH >= 80;
-  if (!open) {
-    lockedListMaxH = null;
-    clearKeyboardLayout();
-    return;
-  }
-  const root = document.documentElement;
-  root.classList.add("keyboard-open");
-  const topBar = document.querySelector(".top-bar");
-  const addBar = document.querySelector("#screen-list .add-bar");
-  const nav = document.querySelector(".bottom-nav");
-  const topH = topBar ? topBar.getBoundingClientRect().height : 0;
-  const addH = addBar ? addBar.getBoundingClientRect().height : 76;
-  const navH = nav ? nav.getBoundingClientRect().height : 64;
-  const listMax = Math.max(120, Math.round(viewport.height - topH - addH - navH));
-  if (lockedListMaxH != null && Math.abs(listMax - lockedListMaxH) < 24) return;
-  lockedListMaxH = listMax;
-  root.style.setProperty("--list-max-h", `${listMax}px`);
-  scrollListToLatestIfKeyboardOpen();
-}
-
-function scrollListToLatestIfKeyboardOpen() {
-  if (!document.documentElement.classList.contains("keyboard-open")) return;
+function scrollListToLatestItem() {
+  if (document.activeElement !== itemInput) return;
   const scroller = document.getElementById("list-content");
   if (!scroller) return;
   scroller.scrollTop = scroller.scrollHeight;
 }
 
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", syncKeyboardLayout);
-}
+itemInput.addEventListener("focus", scrollListToLatestItem);
 
 state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=81", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=82", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
