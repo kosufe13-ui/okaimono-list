@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" data-page="list" data-build="89">
+<html lang="ja" data-page="list" data-build="94">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="お買い物リスト">
   <meta name="description" content="お店ごとに分けて使える、シンプルなお買い物リスト">
   <title>お買い物リスト</title>
-  <!-- okaimono-build v89 -->
+  <!-- okaimono-build v94 -->
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -18,7 +18,7 @@
   <script>
     (function () {
       if (!("serviceWorker" in navigator)) return;
-      var SCRIPT = "./sw.js?v=89";
+      var SCRIPT = "./sw.js?v=94";
       navigator.serviceWorker.register(SCRIPT, { updateViaCache: "none" }).then(function (reg) {
         reg.update();
         document.addEventListener("visibilitychange", function () {
@@ -68,7 +68,7 @@
       <div class="screen-body">
         <p class="hint">チェックした商品を、今選んでいるお店のリストにまとめて追加できます。商品名をタップすると名前を編集できます。「すべて」のときは、すべてのお店に追加します。</p>
         <div id="history-content"></div>
-        <button type="button" id="history-add-selected" class="favorite-select-bar hidden" data-action="add-selected-history">選択した0件を追加</button>
+        <button type="button" id="history-add-selected" class="favorite-select-bar hidden" data-action="add-selected-history">選択した0件をリストに戻す</button>
       </div>
     </section>
 
@@ -87,7 +87,7 @@
 
         <h2 class="section-title">アプリとして使う</h2>
         <div class="info-card">
-          iPhoneのSafariでこの画面を開き、共有ボタンから「ホーム画面に追加」を選ぶと、普通のアプリに近い見た目で使えます。表示中のバージョンは 89 です。
+          iPhoneのSafariでこの画面を開き、共有ボタンから「ホーム画面に追加」を選ぶと、普通のアプリに近い見た目で使えます。表示中のバージョンは 94 です。
         </div>
 
         <h2 class="section-title">データについて</h2>

@@ -606,7 +606,7 @@ function renderList() {
   }
 }
 
-function updateSelectBar(barId, selectedIds, items, screen, bodyClass) {
+function updateSelectBar(barId, selectedIds, items, screen, bodyClass, actionLabel) {
   const bar = document.getElementById(barId);
   if (!bar) return;
   const ids = new Set(items.map((item) => item.id));
@@ -615,17 +615,17 @@ function updateSelectBar(barId, selectedIds, items, screen, bodyClass) {
   });
   const count = selectedIds.size;
   const show = currentScreen === screen && count > 0;
-  bar.textContent = `選択した${count}件を追加`;
+  bar.textContent = `選択した${count}件を${actionLabel}`;
   bar.classList.toggle("hidden", !show);
   document.body.classList.toggle(bodyClass, show);
 }
 
 function updateFavoriteSelectBar() {
-  updateSelectBar("favorite-add-selected", selectedFavoriteIds, state.favorites, "favorites", "has-favorite-selection");
+  updateSelectBar("favorite-add-selected", selectedFavoriteIds, state.favorites, "favorites", "has-favorite-selection", "追加");
 }
 
 function updateHistorySelectBar() {
-  updateSelectBar("history-add-selected", selectedHistoryIds, state.history, "history", "has-history-selection");
+  updateSelectBar("history-add-selected", selectedHistoryIds, state.history, "history", "has-history-selection", "リストに戻す");
 }
 
 function toggleSelectButton(selectedIds, id, target, updateBar) {
@@ -815,6 +815,9 @@ itemInput.addEventListener("keydown", (event) => {
   if (Date.now() < ignoreEnterSubmitUntil) return;
   event.preventDefault();
   submitCurrentItem();
+});
+itemInput.addEventListener("focus", () => {
+  requestAnimationFrame(scrollListToLatestItem);
 });
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
@@ -1290,7 +1293,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=89", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=94", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
