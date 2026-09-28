@@ -1223,31 +1223,21 @@ body.is-sorting .simple-list {
     flex-shrink: 0;
   }
 
-  .top-bar:has(+ #screen-list #item-input:focus) {
-    display: none;
-  }
-
-  #app:has(#screen-list #item-input:focus) {
-    justify-content: flex-end;
-  }
-
   #screen-list:has(#item-input:focus) {
     flex: 0 0 auto;
   }
 
   #screen-list:has(#item-input:focus) #list-content {
-    flex: 0 0 120px;
-    height: 120px;
-    min-height: 120px;
-    max-height: 120px;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: 200px;
+    min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
     padding-top: 6px;
     padding-bottom: 6px;
   }
 
-  #screen-list:has(#item-input:focus) .list-status,
-  #screen-list:has(#item-input:focus) .list-progress,
   #screen-list:has(#item-input:focus) .bought-block,
   #screen-list:has(#item-input:focus) .store-heading {
     display: none;
