@@ -312,12 +312,19 @@ function toastAddResults(results, source) {
   }
 }
 
+let listScrollMode = "preserve";
+
 function addItemToCurrentStore(name, source) {
   const trimmed = name.trim();
   if (!trimmed) return;
   const results = currentStoreIds().map((storeId) => addItemToStore(storeId, trimmed));
   saveState();
-  render();
+  listScrollMode = "latest";
+  try {
+    render();
+  } finally {
+    listScrollMode = "preserve";
+  }
   toastAddResults(results, source);
 }
 
@@ -514,63 +521,89 @@ function progressHtml(items) {
   `;
 }
 
+function captureListScroll() {
+  const list = document.getElementById("list-content");
+  const screen = document.getElementById("screen-list");
+  return {
+    list: list ? list.scrollTop : 0,
+    screen: screen ? screen.scrollTop : 0,
+    windowY: window.scrollY
+  };
+}
+
+function restoreListScroll(saved) {
+  const list = document.getElementById("list-content");
+  const screen = document.getElementById("screen-list");
+  if (list) list.scrollTop = saved.list;
+  if (screen) screen.scrollTop = saved.screen;
+  const page = document.scrollingElement || document.documentElement;
+  if (Math.abs(page.scrollTop - saved.windowY) > 1) {
+    page.scrollTop = saved.windowY;
+  }
+}
+
 function renderList() {
   const root = document.getElementById("list-content");
+  const saved = captureListScroll();
 
-  if (isAllStoresView()) {
-    const hasItems = state.items.length > 0;
-    if (!hasItems) {
+  try {
+    if (isAllStoresView()) {
+      const hasItems = state.items.length > 0;
+      if (!hasItems) {
+        root.innerHTML = `
+          <div class="empty">
+            <span class="emoji">🛒</span>
+            まだ商品がありません<br>お店を選ぶか、下の欄から追加してみましょう
+          </div>
+        `;
+        return;
+      }
       root.innerHTML = `
-        <div class="empty">
-          <span class="emoji">🛒</span>
-          まだ商品がありません<br>お店を選ぶか、下の欄から追加してみましょう
-        </div>
+        ${listStatusHtml(totalUncheckedCount())}
+        ${state.stores
+          .map((store) => {
+            const items = itemsInStore(store.id);
+            if (items.length === 0) return "";
+            const color = storeColor(store);
+            return `
+              <section class="store-group" data-color="${color}">
+                <h2 class="store-heading" data-color="${color}">${escapeHtml(store.name)}（${uncheckedCount(store.id)}）</h2>
+                ${progressHtml(items)}
+                ${renderStoreItemLists(store.id)}
+              </section>
+            `;
+          })
+          .join("")}
       `;
-      scrollListToLatestItem();
       return;
     }
-    root.innerHTML = `
-      ${listStatusHtml(totalUncheckedCount())}
-      ${state.stores
-        .map((store) => {
-          const items = itemsInStore(store.id);
-          if (items.length === 0) return "";
-          const color = storeColor(store);
-          return `
-            <section class="store-group" data-color="${color}">
-              <h2 class="store-heading" data-color="${color}">${escapeHtml(store.name)}（${uncheckedCount(store.id)}）</h2>
-              ${progressHtml(items)}
-              ${renderStoreItemLists(store.id)}
-            </section>
-          `;
-        })
-        .join("")}
-    `;
-    scrollListToLatestItem();
-    return;
-  }
 
-  const items = currentItems();
-  const unchecked = items.filter((item) => !item.checked);
-  if (items.length === 0) {
+    const items = currentItems();
+    const unchecked = items.filter((item) => !item.checked);
+    if (items.length === 0) {
+      root.innerHTML = `
+        ${listStatusHtml(0)}
+        ${progressHtml(items)}
+        <div class="empty">
+          <span class="emoji">🛒</span>
+          まだ商品がありません<br>下の欄から追加してみましょう
+        </div>
+      `;
+      return;
+    }
+
     root.innerHTML = `
-      ${listStatusHtml(0)}
+      ${listStatusHtml(unchecked.length)}
       ${progressHtml(items)}
-      <div class="empty">
-        <span class="emoji">🛒</span>
-        まだ商品がありません<br>下の欄から追加してみましょう
-      </div>
+      ${renderStoreItemLists(state.currentStoreId)}
     `;
-    scrollListToLatestItem();
-    return;
+  } finally {
+    if (listScrollMode === "latest") {
+      scrollListToLatestItem();
+    } else {
+      restoreListScroll(saved);
+    }
   }
-
-  root.innerHTML = `
-    ${listStatusHtml(unchecked.length)}
-    ${progressHtml(items)}
-    ${renderStoreItemLists(state.currentStoreId)}
-  `;
-  scrollListToLatestItem();
 }
 
 function updateSelectBar(barId, selectedIds, items, screen, bodyClass) {
@@ -1248,19 +1281,16 @@ document.addEventListener("pointerdown", (event) => {
 });
 
 function scrollListToLatestItem() {
-  if (document.activeElement !== itemInput) return;
   const scroller = document.getElementById("list-content");
   if (!scroller) return;
   scroller.scrollTop = scroller.scrollHeight;
 }
 
-itemInput.addEventListener("focus", scrollListToLatestItem);
-
 state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=82", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=89", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

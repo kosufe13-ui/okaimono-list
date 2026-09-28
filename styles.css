@@ -79,21 +79,31 @@ button {
 }
 
 #app {
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
   min-height: 100dvh;
   position: relative;
   background: var(--bg);
 }
 
-@media (min-width: 520px) {
+@media (min-width: 520px) and (pointer: fine) {
   body {
     background: #f4f4f6;
   }
 
   #app {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
     border-left: 1px solid var(--line);
     border-right: 1px solid var(--line);
+  }
+
+  .add-bar,
+  .bottom-nav {
+    max-width: 480px;
   }
 }
 
@@ -121,6 +131,8 @@ button {
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -195,14 +207,6 @@ button {
 #screen-list,
 #screen-favorites {
   padding-bottom: calc(var(--nav-h) + var(--add-h) + env(safe-area-inset-bottom) + 28px);
-}
-
-body.has-favorite-selection #screen-favorites {
-  padding-bottom: calc(var(--nav-h) + var(--add-h) + var(--select-h) + env(safe-area-inset-bottom) + 28px);
-}
-
-body.has-history-selection #screen-history {
-  padding-bottom: calc(var(--nav-h) + var(--select-h) + env(safe-area-inset-bottom) + 28px);
 }
 
 .screen-body {
@@ -327,6 +331,7 @@ body.has-history-selection #screen-history {
   position: relative;
   margin-top: 6px;
   padding-left: 12px;
+  padding-right: 12px;
 }
 
 .store-group:first-of-type {
@@ -988,17 +993,14 @@ body.is-sorting .simple-list {
 }
 
 .favorite-select-bar {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(85%, 408px);
-  bottom: calc(var(--nav-h) + var(--add-h) + env(safe-area-inset-bottom));
-  z-index: 32;
+  position: static;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 85%;
+  max-width: 408px;
   min-height: 52px;
-  margin: 0;
+  margin: 12px auto 8px;
   padding: 0 16px;
   border: 0;
   border-radius: 16px;
@@ -1016,20 +1018,16 @@ body.is-sorting .simple-list {
 
 .favorite-select-bar:active,
 .favorite-select-bar.is-pressed {
-  transform: translateX(-50%) scale(0.98);
+  transform: scale(0.98);
   filter: brightness(0.9);
-}
-
-#history-add-selected {
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
 }
 
 .add-bar {
   position: fixed;
   left: 0;
   right: 0;
+  width: auto;
   margin: 0 auto;
-  width: min(100%, 480px);
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   z-index: 31;
   display: flex;
@@ -1126,8 +1124,8 @@ body.is-sorting .simple-list {
   position: fixed;
   left: 0;
   right: 0;
+  width: auto;
   margin: 0 auto;
-  width: min(100%, 480px);
   bottom: 0;
   z-index: 30;
   display: flex;
@@ -1139,6 +1137,8 @@ body.is-sorting .simple-list {
 @media (pointer: coarse), (max-width: 519px) {
   html,
   body {
+    width: 100%;
+    max-width: 100%;
     height: 100%;
     overflow: hidden;
   }
@@ -1148,11 +1148,26 @@ body.is-sorting .simple-list {
   }
 
   #app {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
     height: 100%;
     min-height: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .top-bar,
+  .screen,
+  .screen-body,
+  .add-bar,
+  .bottom-nav {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .top-bar {
@@ -1162,7 +1177,8 @@ body.is-sorting .simple-list {
   .screen:not(.hidden) {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-bottom: 28px;
   }
 
@@ -1180,6 +1196,7 @@ body.is-sorting .simple-list {
   #screen-history:not(.hidden) > .screen-body {
     flex: 1;
     min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -1192,23 +1209,8 @@ body.is-sorting .simple-list {
     right: auto;
     bottom: auto;
     width: 100%;
+    margin: 0;
     flex-shrink: 0;
-  }
-
-  .favorite-select-bar {
-    position: relative;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    transform: none;
-    width: calc(100% - 32px);
-    margin: 8px auto;
-    flex-shrink: 0;
-  }
-
-  .favorite-select-bar:active,
-  .favorite-select-bar.is-pressed {
-    transform: scale(0.98);
   }
 
   .bottom-nav {
@@ -1217,26 +1219,28 @@ body.is-sorting .simple-list {
     right: auto;
     bottom: auto;
     width: 100%;
+    margin: 0;
     flex-shrink: 0;
   }
 
-  .top-bar:has(+ #screen-list:focus-within) h1 {
+  .top-bar:has(+ #screen-list #item-input:focus) h1 {
     display: none;
   }
 
-  #screen-list:focus-within .list-status,
-  #screen-list:focus-within .list-progress,
-  #screen-list:focus-within .bought-block,
-  #screen-list:focus-within .store-heading {
+  #screen-list:has(#item-input:focus) .list-status,
+  #screen-list:has(#item-input:focus) .list-progress,
+  #screen-list:has(#item-input:focus) .bought-block,
+  #screen-list:has(#item-input:focus) .store-heading {
     display: none;
   }
 
-  #screen-list:focus-within .store-group {
+  #screen-list:has(#item-input:focus) .store-group {
     margin-top: 0;
     padding-left: 0;
+    padding-right: 0;
   }
 
-  #screen-list:focus-within .store-group::before {
+  #screen-list:has(#item-input:focus) .store-group::before {
     display: none;
   }
 }
