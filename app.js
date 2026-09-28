@@ -817,7 +817,11 @@ itemInput.addEventListener("keydown", (event) => {
   submitCurrentItem();
 });
 itemInput.addEventListener("focus", () => {
+  syncAppHeightToVisualViewport();
   requestAnimationFrame(scrollListToLatestItem);
+});
+itemInput.addEventListener("blur", () => {
+  syncAppHeightToVisualViewport();
 });
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
@@ -1289,11 +1293,32 @@ function scrollListToLatestItem() {
   scroller.scrollTop = scroller.scrollHeight;
 }
 
+function isPhoneLayout() {
+  return window.matchMedia("(pointer: coarse), (max-width: 519px)").matches;
+}
+
+function syncAppHeightToVisualViewport() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  if (!isPhoneLayout() || !vv || document.activeElement !== itemInput) {
+    root.classList.remove("is-kb-open");
+    root.style.removeProperty("--vv-h");
+    return;
+  }
+  root.style.setProperty("--vv-h", `${Math.round(vv.height)}px`);
+  root.classList.add("is-kb-open");
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", syncAppHeightToVisualViewport);
+  window.visualViewport.addEventListener("scroll", syncAppHeightToVisualViewport);
+}
+
 state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=96", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=97", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

@@ -1161,6 +1161,14 @@ body.is-sorting .simple-list {
     border-right: 0;
   }
 
+  html.is-kb-open,
+  html.is-kb-open body,
+  html.is-kb-open #app {
+    height: var(--vv-h, 100%);
+    max-height: var(--vv-h, 100%);
+    min-height: 0;
+  }
+
   .top-bar,
   .screen,
   .screen-body,
