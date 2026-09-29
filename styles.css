@@ -1175,13 +1175,18 @@ body.is-sorting .simple-list {
   }
 
   html.is-kb-open #screen-list:not(.hidden) {
-    justify-content: flex-start;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   html.is-kb-open #list-content {
-    flex-grow: 0;
-    flex-shrink: 1;
-    max-height: calc(100% - var(--add-h) - var(--nav-h));
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  html.is-kb-open #screen-list .add-bar,
+  html.is-kb-open .bottom-nav {
+    flex: 0 0 auto;
   }
 
   .top-bar,
