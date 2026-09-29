@@ -1174,6 +1174,16 @@ body.is-sorting .simple-list {
     min-height: 0;
   }
 
+  html.is-kb-open #screen-list:not(.hidden) {
+    justify-content: flex-start;
+  }
+
+  html.is-kb-open #list-content {
+    flex-grow: 0;
+    flex-shrink: 1;
+    max-height: calc(100% - var(--add-h) - var(--nav-h));
+  }
+
   .top-bar,
   .screen,
   .screen-body,
