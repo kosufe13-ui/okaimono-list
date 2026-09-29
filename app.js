@@ -816,6 +816,9 @@ itemInput.addEventListener("keydown", (event) => {
   event.preventDefault();
   submitCurrentItem();
 });
+itemInput.addEventListener("pointerdown", () => {
+  preparePhoneKeyboardLayout();
+});
 itemInput.addEventListener("focus", () => {
   syncAppHeightToVisualViewport();
   requestAnimationFrame(scrollListToLatestItem);
@@ -1297,6 +1300,18 @@ function isPhoneLayout() {
   return window.matchMedia("(pointer: coarse), (max-width: 519px)").matches;
 }
 
+let lastKeyboardViewHeight = 0;
+
+function preparePhoneKeyboardLayout() {
+  if (!isPhoneLayout() || !window.visualViewport) return;
+  const full = Math.round(window.visualViewport.height);
+  const next = lastKeyboardViewHeight > 200 && lastKeyboardViewHeight < full - 40
+    ? lastKeyboardViewHeight
+    : Math.max(280, full - Math.min(420, Math.round(full * 0.45)));
+  document.documentElement.style.setProperty("--vv-h", `${next}px`);
+  document.documentElement.classList.add("is-kb-open");
+}
+
 function syncAppHeightToVisualViewport() {
   const root = document.documentElement;
   const vv = window.visualViewport;
@@ -1305,7 +1320,11 @@ function syncAppHeightToVisualViewport() {
     root.style.removeProperty("--vv-h");
     return;
   }
-  root.style.setProperty("--vv-h", `${Math.round(vv.height)}px`);
+  const h = Math.round(vv.height);
+  if (window.innerHeight - h > 40) {
+    lastKeyboardViewHeight = h;
+    root.style.setProperty("--vv-h", `${h}px`);
+  }
   root.classList.add("is-kb-open");
 }
 
@@ -1318,7 +1337,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=97", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=98", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
