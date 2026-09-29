@@ -1304,12 +1304,18 @@ let lastKeyboardViewHeight = 0;
 
 function preparePhoneKeyboardLayout() {
   if (!isPhoneLayout() || !window.visualViewport) return;
+  const root = document.documentElement;
+  const bar = document.querySelector(".top-bar");
+  if (bar && !root.style.getPropertyValue("--top-bar-pad")) {
+    root.style.setProperty("--top-bar-pad", getComputedStyle(bar).paddingTop);
+  }
   const full = Math.round(window.visualViewport.height);
   const next = lastKeyboardViewHeight > 200 && lastKeyboardViewHeight < full - 40
     ? lastKeyboardViewHeight
     : Math.max(280, full - Math.min(420, Math.round(full * 0.45)));
-  document.documentElement.style.setProperty("--vv-h", `${next}px`);
-  document.documentElement.classList.add("is-kb-open");
+  root.style.setProperty("--vv-h", `${next}px`);
+  root.style.setProperty("--vv-off", `${Math.round(window.visualViewport.offsetTop)}px`);
+  root.classList.add("is-kb-open");
 }
 
 function syncAppHeightToVisualViewport() {
@@ -1318,6 +1324,8 @@ function syncAppHeightToVisualViewport() {
   if (!isPhoneLayout() || !vv || document.activeElement !== itemInput) {
     root.classList.remove("is-kb-open");
     root.style.removeProperty("--vv-h");
+    root.style.removeProperty("--vv-off");
+    root.style.removeProperty("--top-bar-pad");
     return;
   }
   const h = Math.round(vv.height);
@@ -1325,6 +1333,7 @@ function syncAppHeightToVisualViewport() {
     lastKeyboardViewHeight = h;
     root.style.setProperty("--vv-h", `${h}px`);
   }
+  root.style.setProperty("--vv-off", `${Math.round(vv.offsetTop)}px`);
   root.classList.add("is-kb-open");
 }
 
@@ -1337,7 +1346,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=98", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=99", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
