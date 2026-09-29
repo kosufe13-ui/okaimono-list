@@ -817,6 +817,7 @@ itemInput.addEventListener("keydown", (event) => {
   submitCurrentItem();
 });
 itemInput.addEventListener("focus", () => {
+  if (document.documentElement.classList.contains("is-kb-open")) return;
   requestAnimationFrame(scrollListToLatestItem);
 });
 itemInput.addEventListener("blur", () => {
@@ -1316,9 +1317,12 @@ function applyKeyboardLayout() {
   const h = Math.round(vv.height);
   if (window.innerHeight - h <= 40) return;
   if (h === appliedKeyboardHeight) return;
+  const list = document.getElementById("list-content");
+  const savedTop = list ? list.scrollTop : 0;
   appliedKeyboardHeight = h;
   document.documentElement.style.setProperty("--vv-h", `${h}px`);
   document.documentElement.classList.add("is-kb-open");
+  if (list) list.scrollTop = savedTop;
 }
 
 function scheduleKeyboardLayout() {
@@ -1338,7 +1342,7 @@ state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=100", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=101", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

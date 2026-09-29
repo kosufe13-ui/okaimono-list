@@ -1052,12 +1052,15 @@ body.is-sorting .simple-list {
   flex: 1;
   min-width: 0;
   height: 52px;
+  line-height: 50px;
   padding: 0 16px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #fff;
   outline: none;
   color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .add-bar input:focus,
@@ -1163,8 +1166,6 @@ body.is-sorting .simple-list {
     border-right: 0;
   }
 
-  html.is-kb-open,
-  html.is-kb-open body,
   html.is-kb-open #app {
     height: var(--vv-h, 100%);
     max-height: var(--vv-h, 100%);
@@ -1221,6 +1222,7 @@ body.is-sorting .simple-list {
     width: 100%;
     margin: 0;
     flex-shrink: 0;
+    align-items: center;
   }
 
   .bottom-nav {
