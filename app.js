@@ -816,15 +816,11 @@ itemInput.addEventListener("keydown", (event) => {
   event.preventDefault();
   submitCurrentItem();
 });
-itemInput.addEventListener("pointerdown", () => {
-  preparePhoneKeyboardLayout();
-});
 itemInput.addEventListener("focus", () => {
-  syncAppHeightToVisualViewport();
   requestAnimationFrame(scrollListToLatestItem);
 });
 itemInput.addEventListener("blur", () => {
-  syncAppHeightToVisualViewport();
+  clearKeyboardLayout();
 });
 
 const addSubmitButton = document.querySelector("#add-form .add-btn");
@@ -1300,53 +1296,49 @@ function isPhoneLayout() {
   return window.matchMedia("(pointer: coarse), (max-width: 519px)").matches;
 }
 
-let lastKeyboardViewHeight = 0;
+let keyboardLayoutTimer = 0;
+let appliedKeyboardHeight = 0;
 
-function preparePhoneKeyboardLayout() {
-  if (!isPhoneLayout() || !window.visualViewport) return;
-  const root = document.documentElement;
-  const bar = document.querySelector(".top-bar");
-  if (bar && !root.style.getPropertyValue("--top-bar-pad")) {
-    root.style.setProperty("--top-bar-pad", getComputedStyle(bar).paddingTop);
-  }
-  const full = Math.round(window.visualViewport.height);
-  const next = lastKeyboardViewHeight > 200 && lastKeyboardViewHeight < full - 40
-    ? lastKeyboardViewHeight
-    : Math.max(280, full - Math.min(420, Math.round(full * 0.45)));
-  root.style.setProperty("--vv-h", `${next}px`);
-  root.style.setProperty("--vv-off", `${Math.round(window.visualViewport.offsetTop)}px`);
-  root.classList.add("is-kb-open");
+function clearKeyboardLayout() {
+  clearTimeout(keyboardLayoutTimer);
+  keyboardLayoutTimer = 0;
+  appliedKeyboardHeight = 0;
+  document.documentElement.classList.remove("is-kb-open");
+  document.documentElement.style.removeProperty("--vv-h");
 }
 
-function syncAppHeightToVisualViewport() {
-  const root = document.documentElement;
+function applyKeyboardLayout() {
   const vv = window.visualViewport;
   if (!isPhoneLayout() || !vv || document.activeElement !== itemInput) {
-    root.classList.remove("is-kb-open");
-    root.style.removeProperty("--vv-h");
-    root.style.removeProperty("--vv-off");
-    root.style.removeProperty("--top-bar-pad");
+    clearKeyboardLayout();
     return;
   }
   const h = Math.round(vv.height);
-  if (window.innerHeight - h > 40) {
-    lastKeyboardViewHeight = h;
-    root.style.setProperty("--vv-h", `${h}px`);
+  if (window.innerHeight - h <= 40) return;
+  if (h === appliedKeyboardHeight) return;
+  appliedKeyboardHeight = h;
+  document.documentElement.style.setProperty("--vv-h", `${h}px`);
+  document.documentElement.classList.add("is-kb-open");
+}
+
+function scheduleKeyboardLayout() {
+  if (!isPhoneLayout() || !window.visualViewport || document.activeElement !== itemInput) {
+    clearKeyboardLayout();
+    return;
   }
-  root.style.setProperty("--vv-off", `${Math.round(vv.offsetTop)}px`);
-  root.classList.add("is-kb-open");
+  clearTimeout(keyboardLayoutTimer);
+  keyboardLayoutTimer = setTimeout(applyKeyboardLayout, 80);
 }
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", syncAppHeightToVisualViewport);
-  window.visualViewport.addEventListener("scroll", syncAppHeightToVisualViewport);
+  window.visualViewport.addEventListener("resize", scheduleKeyboardLayout);
 }
 
 state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=99", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=100", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();

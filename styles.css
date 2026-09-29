@@ -1171,10 +1171,6 @@ body.is-sorting .simple-list {
     min-height: 0;
   }
 
-  html.is-kb-open .top-bar {
-    padding-top: calc(var(--top-bar-pad, calc(10px + env(safe-area-inset-top))) + var(--vv-off, 0px));
-  }
-
   .top-bar,
   .screen,
   .screen-body,
