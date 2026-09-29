@@ -1308,14 +1308,37 @@ function clearKeyboardLayout() {
   document.documentElement.style.removeProperty("--vv-h");
 }
 
+function keyboardAppHeight(vv) {
+  return Math.round(vv.height + (vv.offsetTop || 0));
+}
+
+function logKeyboardMetrics(vv, appHeight) {
+  const app = document.getElementById("app");
+  const nav = document.querySelector(".bottom-nav");
+  const appRect = app ? app.getBoundingClientRect() : null;
+  const navRect = nav ? nav.getBoundingClientRect() : null;
+  console.log("[okaimono-kb]", {
+    innerHeight: window.innerHeight,
+    vvHeight: vv.height,
+    vvOffsetTop: vv.offsetTop,
+    vvPageTop: vv.pageTop,
+    appHeightCss: appHeight,
+    appTop: appRect ? appRect.top : null,
+    appBottom: appRect ? appRect.bottom : null,
+    navTop: navRect ? navRect.top : null,
+    navBottom: navRect ? navRect.bottom : null,
+    navAtAppBottom: appRect && navRect ? Math.abs(appRect.bottom - navRect.bottom) < 2 : null
+  });
+}
+
 function applyKeyboardLayout() {
   const vv = window.visualViewport;
   if (!isPhoneLayout() || !vv || document.activeElement !== itemInput) {
     clearKeyboardLayout();
     return;
   }
-  const h = Math.round(vv.height);
-  if (window.innerHeight - h <= 40) return;
+  if (window.innerHeight - vv.height <= 40) return;
+  const h = keyboardAppHeight(vv);
   if (h === appliedKeyboardHeight) return;
   const list = document.getElementById("list-content");
   const savedTop = list ? list.scrollTop : 0;
@@ -1323,6 +1346,7 @@ function applyKeyboardLayout() {
   document.documentElement.style.setProperty("--vv-h", `${h}px`);
   document.documentElement.classList.add("is-kb-open");
   if (list) list.scrollTop = savedTop;
+  logKeyboardMetrics(vv, h);
 }
 
 function scheduleKeyboardLayout() {
@@ -1336,13 +1360,14 @@ function scheduleKeyboardLayout() {
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", scheduleKeyboardLayout);
+  window.visualViewport.addEventListener("scroll", scheduleKeyboardLayout);
 }
 
 state.stores.forEach((store) => reindexStore(store.id));
 render();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js?v=103", { updateViaCache: "none" }).then((registration) => {
+  navigator.serviceWorker.register("./sw.js?v=105", { updateViaCache: "none" }).then((registration) => {
     registration.update();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") registration.update();
