@@ -214,7 +214,7 @@ button {
 }
 
 #list-content.screen-body {
-  padding-top: 12px;
+  padding-top: 16px;
   padding-bottom: 16px;
 }
 
@@ -1052,13 +1052,15 @@ body.is-sorting .simple-list {
   flex: 1;
   min-width: 0;
   height: 52px;
-  line-height: 50px;
-  padding: 0 16px;
+  min-height: 52px;
+  line-height: 22px;
+  padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #fff;
   outline: none;
   color: var(--text);
+  box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
 }
